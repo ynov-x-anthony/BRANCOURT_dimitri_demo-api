@@ -1,89 +1,89 @@
-# demo-api
+# Demo API — Stack Docker Compose
 
-Le fil rouge des quêtes Docker : une mini-API "catalogue" que tu vas
-conteneuriser, faire persister, mettre en réseau, orchestrer et sécuriser,
-une quête à la fois.
+Stack complète conteneurisée comprenant une API Node.js (`demo-api`), une base de données PostgreSQL 16 (`db`) et une interface d'administration de base de données (`adminer`), orchestrée via Docker Compose.
 
-Le métier est volontairement trivial (`Node` + `Express` + `PostgreSQL`,
-un catalogue de produits) : toute la difficulté est sur **Docker**, jamais
-sur le code applicatif.
+## Prérequis
 
-## Point de départ
+- **Docker Engine** & **Docker Compose** (v2+)
+- Environnement Linux / WSL2
 
-Ce dossier est ce que tu clones **avant ta première quête Docker**. Il n'y a
-volontairement **aucun fichier Docker** dedans, ni `Dockerfile`, ni
-`compose.yml` : ce sont précisément les fichiers que tu vas écrire, quête
-après quête, en faisant grossir ce dépôt.
+## Installation et configuration
 
-Sans conteneur, cette API ne démarre pas telle quelle : elle a besoin d'un
-PostgreSQL joignable pour répondre. C'est normal, et c'est tout le sujet de
-la première quête que de la faire tourner dans Docker.
-
-## Récupérer ce starter dans ton propre repo
-
-Ce dépôt est un **starter en lecture seule** : tu ne pousses jamais
-directement ici. Avant de démarrer la première quête :
-
-1. **Clone** ce repo starter :
+1. **Cloner le dépôt :**
    ```bash
-   git clone git@github.com:ynov-x-anthony/docker-demo-api-starter.git NOM_prenom_demo-api
-   cd NOM_prenom_demo-api
-   ```
-2. **Supprime le remote `origin`** (il pointe vers le starter, pas vers toi) :
-   ```bash
-   git remote remove origin
-   ```
-3. **Crée ton propre repo** sur GitHub, dans l'organisation `ynov-x-anthony`,
-   en respectant la nomenclature **`NOM_prenom_demo-api`** (ex. :
-   `DUPONT_jean_demo-api`), puis ajoute-le comme nouveau remote et pousse :
-   ```bash
-   git remote add origin git@github.com:ynov-x-anthony/NOM_prenom_demo-api.git
-   git push -u origin main
+   git clone <URL_DE_TON_REPO_GITHUB>
+   cd BRANCOURT_dimitri_demo-api
    ```
 
-À partir de là, c'est **ton** repo : chaque quête s'y ajoute par des commits,
-et c'est lui qui sera évalué, pas le starter.
+2. **Configurer les variables d'environnement :**
+   ```bash
+   cp .env.example .env
+   ```
 
-## Ce que contient le repo
+3. **Configurer le secret du mot de passe de la base de données (Docker Secrets) :**
+   ```bash
+   mkdir -p secrets
+   echo -n "demo" > secrets/db_password.txt
+   ```
 
-| Fichier | Rôle |
-|---|---|
-| `api/server.js` | l'API Express (`/`, `/version`, `/health`, `/ready`, `/products`) |
-| `api/db.js` | connexion PostgreSQL, entièrement pilotée par des variables d'environnement |
-| `api/package.json`, `api/package-lock.json` | dépendances (`express`, `pg`) |
-| `db/init.sql` | création de la table `products` + quelques données de démo |
+## Démarrage de la stack
 
-## Les routes de l'API
+Pour construire l'image de l'API et démarrer l'ensemble des services en arrière-plan :
 
-| Méthode | Route | Effet |
-|---|---|---|
-| `GET` | `/` | infos application + version |
-| `GET` | `/version` | numéro de version courant |
-| `GET` | `/health` | liveness, ne touche pas la base |
-| `GET` | `/ready` | readiness, teste la connexion à la base |
-| `GET` | `/products` | liste des produits |
-| `POST` | `/products` | crée un produit : `{ "name": "...", "price_cents": 1234 }` |
+```bash
+docker compose up -d --build
+```
 
-## Ta progression, quête après quête
+## Services et URLs disponibles
 
-| Quête | Ce que tu ajoutes au repo |
-|---|---|
-| Découverte de Docker | rien ici, tu manipules des images publiques et un `psql` en conteneur |
-| Le Dockerfile | `api/Dockerfile`, `api/.dockerignore` : l'API tourne enfin dans un conteneur |
-| Les volumes | un volume nommé pour la persistance de PostgreSQL |
-| Les réseaux | des réseaux dédiés, la base jamais exposée directement |
-| Compose | `compose.yml`, `.env.example` : tous les services démarrent ensemble |
-| Dockerfile et sécurité | ton `Dockerfile` durci : utilisateur non-root, `HEALTHCHECK` |
-| Builds multi-étapes et gestion des secrets | `api/Dockerfile.multi` : image allégée, secrets hors de l'image |
-| Analyse de vulnérabilité avec Trivy | un pipeline CI qui scanne ton image et bloque sur les failles critiques |
+| Service | URL locale | Description |
+| :--- | :--- | :--- |
+| **API (`/health`)** | `http://localhost:8080/health` | Vérification de santé de l'API |
+| **API (`/products`)** | `http://localhost:8080/products` | Liste et création des produits (GET / POST) |
+| **Adminer** | `http://localhost:8081` | Interface web SQL (Système: `PostgreSQL`, Serveur: `db`, Utilisateur: `demo`, Mot de passe: `demo`, Base: `demo`) |
+| **PostgreSQL** | *Non exposé sur l'hôte* | Isolé uniquement sur le réseau interne `back` |
 
-## Prérequis machine (macOS / Linux / Windows)
+## Vérifications et preuves de fonctionnement
 
-- **Docker Engine + Compose v2** : le plugin intégré, invoqué en deux mots
-  `docker compose` (pas l'ancien binaire autonome `docker-compose` v1).
-  `docker compose version` doit répondre `v2.x` ou une version supérieure
-  (v3, v4, v5…). Ce qui compte, c'est que ce ne soit pas du v1 legacy.
-- macOS / Windows : **Docker Desktop** (ou Colima / Rancher Desktop).
-  Sous Windows, backend **WSL 2** : travaille depuis un terminal **WSL**.
-- `git`, `curl`. Node est nécessaire **seulement** si tu régénères
-  `package-lock.json` (`cd api && npm install`, déjà commité ici).
+### État des services (`docker compose ps`)
+
+Commande exécutée :
+```bash
+docker compose ps
+```
+
+Extrait de sortie montrant `db` à l'état `healthy` et `api` à l'état `Up` :
+```text
+NAME           IMAGE                COMMAND                  SERVICE   CREATED         STATUS                   PORTS
+demo-adminer   adminer:4            "entrypoint.sh docke…"   adminer   3 minutes ago   Up 3 minutes             0.0.0.0:8081->8080/tcp, [::]:8081->8080/tcp
+demo-api       demo-api:1.0         "docker-entrypoint.s…"   api       3 minutes ago   Up 3 minutes (healthy)   0.0.0.0:8080->3000/tcp, [::]:8080->3000/tcp
+demo-db        postgres:16-alpine   "docker-entrypoint.s…"   db        3 minutes ago   Up 3 minutes (healthy)   5432/tcp
+```
+
+### Test des endpoints et de la persistance
+
+```bash
+# Lecture des produits initiaux
+curl -s localhost:8080/products
+
+# Ajout d'un nouveau produit
+curl -s -X POST -H 'content-type: application/json' \
+  -d '{"name":"Gourde","price_cents":900}' localhost:8080/products
+
+# Arrêt et redémarrage de la stack (le volume pgdata conserve "Gourde")
+docker compose down
+docker compose up -d
+curl -s localhost:8080/products
+```
+
+## Arrêt et remise à zéro
+
+- **Arrêter les conteneurs (en conservant les données SQL) :**
+  ```bash
+  docker compose down
+  ```
+
+- **Repartir de zéro (supprimer les conteneurs, réseaux ET le volume de données `pgdata`) :**
+  ```bash
+  docker compose down -v
+  ```
